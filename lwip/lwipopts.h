@@ -60,7 +60,7 @@
 #define LWIP_HTTPD_SSI                  0
 #define LWIP_HTTPD_SSI_INCLUDE_TAG      0
 
-#if 1
+#if 0
 #define LWIP_DEBUG 1
 #define TCP_DEBUG                       LWIP_DBG_ON
 #define ETHARP_DEBUG                    LWIP_DBG_ON

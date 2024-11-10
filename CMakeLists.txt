@@ -2,7 +2,7 @@
 
 cmake_minimum_required(VERSION 3.13)
 
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD 17)
 set(CMAKE_CXX_STANDARD 17)
 
 # initalize pico_sdk from installed location
@@ -21,7 +21,7 @@ pico_sdk_init()
 # Add executable. Default name is the project name, version 0.1
 
 # removed pico_spi_ethernet.c
-add_executable(pico_spi_ethernet enc28j60.c lwip.c)
+add_executable(pico_spi_ethernet enc28j60.c lwip.cpp)
 
 # This is required to include lwipopts.h
 target_include_directories(pico_spi_ethernet PRIVATE
