@@ -5,6 +5,7 @@
 #include "lwip/stats.h"
 #include "lwip/dhcp.h"
 #include "lwip/timeouts.h"
+#include "lwip/apps/mqtt.h"
 #include "netif/etharp.h"
 #include <cstring>
 #include <cstdio>
@@ -27,7 +28,7 @@ extern "C"{
 // based on example from: https://www.nongnu.org/lwip/2_0_x/group__lwip__nosys.html
 #define ETHERNET_MTU 1500
 
-uint8_t mac[6] = {0xAA, 0x6F, 0x77, 0x47, 0x75, 0x8C};
+constexpr uint8_t mac[6] = {0xAA, 0x6F, 0x77, 0x47, 0x75, 0x8C};
 
 static err_t netif_output(struct netif *netif, struct pbuf *p)
 {
@@ -52,6 +53,7 @@ static err_t netif_output(struct netif *netif, struct pbuf *p)
     if (enc28j60Read(EIR) & EIR_TXERIF)
     {
         printf("ERR - transmit interrupt flag set\n");
+        enc28j60Init(mac);
     }
 
     // unlock_interrupts();
@@ -77,14 +79,21 @@ static err_t netif_initialize(struct netif *netif)
     return ERR_OK;
 }
 
+void mqtt_pub_cb(void* arg, err_t result){
+   printf("Publish result: %d\n", result);
+}
 
+void mqtt_conn_cb(mqtt_client_t *client, void *arg, mqtt_connection_status_t status){
+   printf("Connect Callback");
+   if(status==MQTT_CONNECT_ACCEPTED) *static_cast<bool*>(arg)=true;
+}
 
 int main(void)
 {
     stdio_init_all();
 
     // data sheet up to 20 mhz
-    spi_init(SPI_PORT, 20*1000*1000);
+    spi_init(SPI_PORT, 20'000'000);
     gpio_set_function(PIN_MISO, GPIO_FUNC_SPI);
     gpio_set_function(PIN_CS, GPIO_FUNC_SIO);
     gpio_set_function(PIN_SCK, GPIO_FUNC_SPI);
@@ -96,21 +105,21 @@ int main(void)
 
     // END PICO INIT
 
-    for (int i = 10; i > 0; i--)
+    for (int i = 5; i > 0; i--)
     {
         printf("Sleeping for %d seconds...\n", i);
         sleep_ms(1000);
     }
 
     ip_addr_t addr, mask, static_ip;
-    IP4_ADDR(&static_ip, 192, 168, 20, 111);
+    IP4_ADDR(&static_ip, 192, 168, 20, 211);
     IP4_ADDR(&mask, 255, 255, 255, 0);
     IP4_ADDR(&addr, 192, 168, 20, 1);
 
     struct netif netif;
     lwip_init();
     // IP4_ADDR_ANY if using DHCP client
-    netif_add(&netif, IP4_ADDR_ANY,IP4_ADDR_ANY,IP4_ADDR_ANY, NULL, netif_initialize, netif_input);
+    netif_add(&netif, &static_ip, &mask, &addr, NULL, netif_initialize, netif_input);
     netif.name[0] = 'e';
     netif.name[1] = '0';
     // netif_create_ip6_linklocal_address(&netif, 1);
@@ -119,13 +128,32 @@ int main(void)
     netif_set_default(&netif);
     netif_set_up(&netif);
 
-    //dhcp_inform(&netif);
-    dhcp_start(&netif);
+    dhcp_inform(&netif);
+    //dhcp_start(&netif);
+
+    //MQTT
+    mqtt_client_t* mqtt_client=mqtt_client_new();
+    const char* client_id="pico-test";
+    const char* user="influx";
+    const char* passwd="influx";
+    ip_addr_t mqtt_server;
+    IP4_ADDR(&mqtt_server, 192, 168, 20, 71);
+    mqtt_connect_client_info_t client_info;
+    memset(&client_info,0,sizeof(client_info));
+    client_info.client_id=client_id;
+    client_info.client_user=user;
+    client_info.client_pass=passwd;
+    client_info.keep_alive=10;
+    bool connected=false;
+
 
     std::byte eth_pkt[ETHERNET_MTU];
     struct pbuf *p = NULL;
 
     netif_set_link_up(&netif);
+
+    err_t connect_err=mqtt_client_connect(mqtt_client,&mqtt_server,1883,mqtt_conn_cb,&connected,&client_info);
+    printf("MQTT connect: %d\n",connect_err);
 
 /*
     struct tcp_pcb * pcb=tcp_new();
@@ -133,6 +161,10 @@ int main(void)
     pcb=tcp_listen(pcb);
 */
 
+    char msgbuf[50];
+    int msgcount=0;
+
+    int counter=0;
     while (1)
     {
         uint16_t packet_len = enc28j60PacketReceive(ETHERNET_MTU, (uint8_t *)eth_pkt);
@@ -163,7 +195,18 @@ int main(void)
         sys_check_timeouts();
 
         /* your application goes here */
-        sleep_ms(5);
-        //if(netif.dhcp->state==DHCP_BOUND) printf("dhcp bound.");
+        sleep_ms(2);
+        if(counter++>=100 && connected){
+           //const char *pub_payload= "MQTT Test ABC";
+           snprintf(msgbuf,sizeof(msgbuf),"MQTT Test: %d",msgcount++);
+           err_t err;
+           u8_t qos = 2; /* 0 1 or 2, see MQTT specification */
+           u8_t retain = 0; /* No don't retain such crappy payload... */
+           err = mqtt_publish(mqtt_client, "test_topic", msgbuf, strlen(msgbuf), qos, retain, mqtt_pub_cb, nullptr);
+           if(err != ERR_OK) {
+             printf("Publish err: %d\n", err);
+           }
+           counter=0;
+        }
     }
 }

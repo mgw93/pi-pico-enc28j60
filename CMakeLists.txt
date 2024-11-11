@@ -37,6 +37,7 @@ target_link_libraries(
 #        pico_lwip
 #        pico_lwip_arch
         pico_lwip_nosys
+        pico_lwip_mqtt
         hardware_spi
 )
 
