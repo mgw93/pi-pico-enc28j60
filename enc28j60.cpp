@@ -633,9 +633,10 @@ void enc28j60::poll(){
 
    uint8_t epktcnt;
    bool linkstate=this->linkstate();
+   //DEBUG("Linkstate: %hhd\n",linkstate);
 
-   if (linkstate) netif_set_link_up(netif);
-   else netif_set_link_down(netif);
+   //if (linkstate) netif_set_link_up(netif);
+   //else netif_set_link_down(netif);
 
    epktcnt = enc_RCR(ENC_EPKTCNT);
 
