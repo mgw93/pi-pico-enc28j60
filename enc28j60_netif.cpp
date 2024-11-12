@@ -132,8 +132,8 @@ void enc28j60_netif::poll(){
    bool linkstate=this->linkstate();
    //DEBUG("Linkstate: %hhd\n",linkstate);
 
-   //if (linkstate) netif_set_link_up(netif);
-   //else netif_set_link_down(netif);
+   if (linkstate) netif_set_link_up(this);
+   else netif_set_link_down(this);
 
    epktcnt = enc_RCR(ENC_EPKTCNT);
 
