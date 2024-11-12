@@ -1,3 +1,6 @@
+#ifndef ENC28J60_CONSTS_H
+#define ENC28J60_CONSTS_H
+
 /**
  * @addtogroup enc28j60
  * @{
@@ -142,3 +145,5 @@ enum enc_led_t{
 #define ENC_READLOCATION_ANY (uint16_t)(~0)
 
 /** @} @} */
+
+#endif // ENC28J60_CONSTS_H

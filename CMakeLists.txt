@@ -21,7 +21,7 @@ pico_sdk_init()
 # Add executable. Default name is the project name, version 0.1
 
 # removed pico_spi_ethernet.c
-add_executable(pico_spi_ethernet enc28j60.c enc28j60.cpp lwip.cpp)
+add_executable(pico_spi_ethernet enc28j60_netif.cpp enc28j60.cpp lwip.cpp)
 
 # This is required to include lwipopts.h
 target_include_directories(pico_spi_ethernet PRIVATE

@@ -1,3 +1,6 @@
+#ifndef ENC28J60_HPP
+#define ENC28J60_HPP
+
 /**
  *
  * @addtogroup enc28j60 ENC28J60 driver
@@ -16,8 +19,6 @@
  */
 
 #include "enc28j60-consts.h"
-#include <lwip/pbuf.h>
-#include <lwip/netif.h>
 
 
 class enc28j60{
@@ -35,26 +36,20 @@ public:
    void receive_end(const uint8_t header[6]);
    uint16_t enc_read_received(uint8_t *data, uint16_t maxlength);
 
-   void enc_transmit_pbuf(const struct pbuf *buf);
-   int enc_read_received_pbuf(struct pbuf **buf);
-
    bool linkstate();
-   static err_t netif_init(struct netif *netif);
-   static err_t linkoutput(struct netif *netif, struct pbuf *p);
-   static void status_callback(){};
-   void poll();
 
 protected:
    void transmit_start();
    void transmit_partial(const uint8_t *data, uint16_t length);
    void transmit_end(uint16_t length);
-private:
+
    uint8_t command(uint8_t first, uint8_t second);
    uint8_t enc_RCR(uint8_t reg) ;
    void enc_WCR(uint8_t reg, uint8_t data);
    void enc_BFS(uint8_t reg, uint8_t data);
    void enc_BFC(uint8_t reg, uint8_t data);
    void enc_RBM(uint8_t *dest, uint16_t start, uint16_t length);
+private:
    void WBM_raw(const uint8_t *src, uint16_t length);
    void enc_WBM(const uint8_t *src, uint16_t start, uint16_t length);
    uint16_t enc_RCR16(enc_register_t reg);
@@ -80,5 +75,6 @@ private:
    /** Reference to the hardware implementation to access device
    * information */
    struct enchw_device_t &hwdev;
-   struct netif *netif{0};
 };
+
+#endif // ENC28J60_HPP

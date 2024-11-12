@@ -16,7 +16,7 @@
 //#include "enc28j60.h"
 //}
 
-#include "enc28j60.hpp"
+#include "enc28j60_netif.hpp"
 #include "enchw.h"
 
 
@@ -41,7 +41,7 @@ int main(void)
     stdio_init_all();
 
     enchw_device_t spidev;
-    enc28j60 encdev(spidev);
+    enc28j60_netif netif(spidev);
 
     for (int i = 5; i > 0; i--)
     {
@@ -56,14 +56,14 @@ int main(void)
     IP4_ADDR(&mask, 255, 255, 255, 0);
     IP4_ADDR(&addr, 192, 168, 20, 1);
 
-    struct netif netif;
+    //struct netif netif;
     lwip_init();
     // IP4_ADDR_ANY if using DHCP client
     netif.name[0] = 'e';
     netif.name[1] = '0';
     memcpy(netif.hwaddr,mac,6);
     netif.hwaddr_len=6;
-    netif_add(&netif, &static_ip, &mask, &addr, &encdev, encdev.netif_init, netif_input);
+    netif_add(&netif, &static_ip, &mask, &addr, &netif, netif.netif_init, netif_input);
 
     netif_set_default(&netif);
     netif_set_up(&netif);
@@ -109,10 +109,10 @@ int main(void)
     {
         /* Cyclic lwIP timers check */
         //sys_check_timeouts();
-        encdev.poll();
+        netif.poll();
 
         /* your application goes here */
-        sleep_ms(10);
+        sleep_ms(2);
         //printf("count: %d, connected: %hhd\n",counter,connected);
         if(counter++>=100 && connected){
            //const char *pub_payload= "MQTT Test ABC";
