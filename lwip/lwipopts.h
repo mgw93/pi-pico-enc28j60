@@ -48,7 +48,7 @@
 #define DHCP_DOES_ARP_CHECK         0
 #define LWIP_DHCP_DOES_ACD_CHECK    0
 
-#ifndef NDEBUG
+#if 1 // NDEBUG
 #define LWIP_DEBUG                  1
 #define LWIP_STATS                  1
 #define LWIP_STATS_DISPLAY          1
@@ -68,9 +68,9 @@
 #define MEM_DEBUG                   LWIP_DBG_OFF
 #define MEMP_DEBUG                  LWIP_DBG_OFF
 #define SYS_DEBUG                   LWIP_DBG_OFF
-#define TCP_DEBUG                   LWIP_DBG_OFF
-#define TCP_INPUT_DEBUG             LWIP_DBG_OFF
-#define TCP_OUTPUT_DEBUG            LWIP_DBG_OFF
+#define TCP_DEBUG                   LWIP_DBG_ON
+#define TCP_INPUT_DEBUG             LWIP_DBG_ON
+#define TCP_OUTPUT_DEBUG            LWIP_DBG_ON
 #define TCP_RTO_DEBUG               LWIP_DBG_OFF
 #define TCP_CWND_DEBUG              LWIP_DBG_OFF
 #define TCP_WND_DEBUG               LWIP_DBG_OFF
