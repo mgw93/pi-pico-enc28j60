@@ -117,7 +117,7 @@ err_t enc28j60_netif::netif_init(struct netif *netif){
 }
 
 err_t enc28j60_netif::linkoutput(struct netif *netif, struct pbuf *p){
-   enc28j60_netif &dev=*static_cast<enc28j60_netif*>(netif->state);
+   enc28j60_netif &dev=*static_cast<enc28j60_netif*>(netif);
    dev.enc_transmit_pbuf(p);
    LWIP_DEBUGF(NETIF_DEBUG, ("sent %d bytes.\n", p->tot_len));
    // TODO: Evaluate result

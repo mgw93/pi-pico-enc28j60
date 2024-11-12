@@ -16,7 +16,8 @@
 #include "enc28j60.hpp"
 #include "enchw.h"
 
-#define DEBUG(...) printf(__VA_ARGS__)
+//#define DEBUG(...) printf(__VA_ARGS__)
+#define DEBUG(...)
 
 //#define DEBUG(...) LWIP_DEBUGF(NETIF_DEBUG, (__VA_ARGS__))
 
@@ -146,12 +147,13 @@ uint8_t enc28j60::enc_bist_manual()
 	return 0;
 }
 
-uint8_t enc28j60::command(uint8_t first, uint8_t second)
+uint8_t enc28j60::command(uint8_t first, uint8_t second,bool dummy)
 {
 	uint8_t result;
 	hwdev.select();
 	hwdev.exchangebyte(first);
 	result = hwdev.exchangebyte(second);
+        if(dummy) result=hwdev.exchangebyte(0);
 	hwdev.unselect();
 	return result;
 }
@@ -176,9 +178,13 @@ void enc28j60::ensure_register_accessible(uint8_t r)
 }
 
 /** @todo applies only to eth registers, not to mii ones */
-uint8_t enc28j60::enc_RCR(uint8_t reg) {
+uint8_t enc28j60::enc_RCR(enc_ethreg reg) {
 	ensure_register_accessible(reg);
 	return command(reg & ENC_REGISTERMASK, 0);
+}
+uint8_t enc28j60::enc_RCR(enc_reg reg) {
+	ensure_register_accessible(reg);
+	return command(reg & ENC_REGISTERMASK, 0,true);
 }
 void enc28j60::enc_WCR(uint8_t reg, uint8_t data) {
 	ensure_register_accessible(reg);
@@ -229,8 +235,15 @@ void enc28j60::enc_WBM(const uint8_t *src, uint16_t start, uint16_t length)
  *
  * @todo could use enc_register16_t
  * */
-uint16_t enc28j60::enc_RCR16(enc_register_t reg) {
-	return (enc_RCR(reg|1) << 8) | enc_RCR(reg&~1);
+uint16_t enc28j60::enc_RCR16(enc_ethreg reg) {
+   uint16_t low=enc_RCR(enc_ethreg(reg&~1));
+   uint16_t high=enc_RCR(enc_ethreg(reg|1));
+   return (high << 8) | low;
+}
+uint16_t enc28j60::enc_RCR16(enc_reg reg) {
+   uint16_t low=enc_RCR(enc_reg(reg&~1));
+   uint16_t high=enc_RCR(enc_reg(reg|1));
+   return (high << 8) | low;
 }
 /** 16-bit register write. Compare enc_RCR16. Writes the lower byte first, then
  * the higher, as required for the MII interfaces as well as for ERXRDPT. */
@@ -276,7 +289,7 @@ int enc28j60::enc_wait()
 	return 1;
 }
 
-uint16_t enc28j60::enc_MII_read(enc_phreg_t mireg)
+uint16_t enc28j60::enc_MII_read(enc_phreg mireg)
 {
 	uint16_t result = 0;
 
@@ -301,7 +314,7 @@ void enc28j60::enc_MII_write(uint8_t mireg, uint16_t data)
 }
 
 
-void enc28j60::enc_LED_set(enc_lcfg_t ledconfig, enc_led_t led)
+void enc28j60::enc_LED_set(enc_lcfg ledconfig, enc_led led)
 {
 	uint16_t state;
 	state = enc_MII_read(ENC_PHLCON);

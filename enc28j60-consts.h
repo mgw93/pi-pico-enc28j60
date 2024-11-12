@@ -10,7 +10,7 @@
 
 #define ENC_RAMSIZE (8 * 1024)
 
-enum enc_register_t{
+enum enc_bank : uint8_t{
 	/* the top 3 bits are used to indicate the bank. lowest bit means
 	 * explicit bank, 110 means "present in all banks", 100 mean "don't
 	 * know". thus, right-shifting by 6 gives bank number. */
@@ -25,7 +25,8 @@ enum enc_register_t{
 	ENC_BANK_INDETERMINATE = 0x80,
 
 	ENC_REGISTERMASK = 0x1f,
-
+};
+enum enc_ethreg : uint8_t{
 	/* actual registers start here */
 
 	ENC_EIE = 0x1b | ENC_BANKALL,
@@ -66,7 +67,9 @@ enum enc_register_t{
 
 	ENC_ERXFCON = 0x18 | ENC_BANK1,
 	ENC_EPKTCNT = 0x19 | ENC_BANK1,
+};
 
+enum enc_reg : uint8_t {
 	ENC_MACON1 = 0x00 | ENC_BANK2,
 #define ENC_MACON1_MARXEN 0x01
 #define ENC_MACON1_PASSALL 0x02
@@ -114,8 +117,8 @@ enum enc_register_t{
 } ;
 
 
-/* mii registers */
-enum enc_phreg_t{
+/* phy registers */
+enum enc_phreg : uint8_t{
 	ENC_PHCON1 = 0x00,
 	ENC_PHSTAT1 = 0x01,
 	ENC_PHID1 = 0x02,
@@ -127,7 +130,7 @@ enum enc_phreg_t{
 	ENC_PHLCON = 0x14,
 };
 
-enum enc_lcfg_t{
+enum enc_lcfg : uint8_t{
 	ENC_LCFG_ON = 0x8,
 	ENC_LCFG_OFF = 0x9,
 	ENC_LCFG_BLINKFAST = 0xa,
@@ -136,7 +139,7 @@ enum enc_lcfg_t{
 	ENC_LCFG_MASK = 0xf,
 };
 
-enum enc_led_t{
+enum enc_led : uint8_t{
 	/* these are the offsets of ENC_LCFG */
 	ENC_LEDA = 8,
 	ENC_LEDB = 4,
