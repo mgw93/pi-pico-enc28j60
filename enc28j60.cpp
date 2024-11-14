@@ -545,3 +545,11 @@ uint16_t enc28j60::enc_read_received(uint8_t *data, uint16_t maxlength)
 bool enc28j60::linkstate(){
    return enc_MII_read(ENC_PHSTAT1) & (1<<2);
 }
+
+uint8_t enc28j60::packetcount(){
+   return enc_RCR(ENC_EPKTCNT);
+}
+
+void enc28j60::receive_partial(uint8_t *dest, uint16_t length){
+   enc_RBM(dest, ENC_READLOCATION_ANY, length);
+}

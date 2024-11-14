@@ -81,7 +81,7 @@ int enc28j60_netif::enc_read_received_pbuf(struct pbuf *&buf)
 		goto end;
 	}
 
-	enc_RBM(static_cast<uint8_t*>(buf->payload), ENC_READLOCATION_ANY, length);
+	receive_partial(static_cast<uint8_t*>(buf->payload), length);
 
 end:
 	receive_end(header);
@@ -132,15 +132,12 @@ void enc28j60_netif::poll(){
    err_t result;
    struct pbuf *buf = nullptr;
 
-   uint8_t epktcnt;
    bool linkstate=this->linkstate();
 
    if (linkstate) netif_set_link_up(this);
    else netif_set_link_down(this);
 
-   epktcnt = enc_RCR(ENC_EPKTCNT);
-
-   if (epktcnt) {
+   if (uint8_t epktcnt = packetcount()) {
       if (enc_read_received_pbuf(buf) == 0)
       {
          LWIP_DEBUGF(NETIF_DEBUG, ("incoming: %d packages, first read into %x\n", epktcnt, (unsigned int)(buf)));

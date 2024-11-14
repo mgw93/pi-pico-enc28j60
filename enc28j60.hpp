@@ -12,14 +12,10 @@
  * provides the various command types as well as read and write access to the
  * ENC28J60 memory.
  *
- * Optionally, support for lwIP's pbuf memory allocation can be compiled in by
- * defining `ENC28J60_USE_PBUF`.
- *
  * @{
  */
 
 #include "enc28j60-consts.h"
-
 
 class enc28j60{
 
@@ -35,30 +31,32 @@ public:
    uint16_t enc_read_received(uint8_t *data, uint16_t maxlength);
 
    bool linkstate();
+   uint8_t packetcount();
 
 protected:
    void transmit_start();
    void transmit_partial(const uint8_t *data, uint16_t length);
    void transmit_end(uint16_t length);
    void receive_start(uint8_t header[6], uint16_t *length);
+   void receive_partial(uint8_t *dest, uint16_t length);
    void receive_end(const uint8_t header[6]);
 
-   uint8_t enc_RCR(enc_ethreg reg) ;
-   uint8_t enc_RCR(enc_reg reg) ;
-   void enc_RBM(uint8_t *dest, uint16_t start, uint16_t length);
 private:
    uint8_t command(uint8_t first, uint8_t second, bool dummy=false);
+   uint8_t enc_RCR(enum enc_ethreg reg) ;
+   uint8_t enc_RCR(enum enc_reg reg) ;
    void enc_WCR(uint8_t reg, uint8_t data);
    void enc_BFS(uint8_t reg, uint8_t data);
    void enc_BFC(uint8_t reg, uint8_t data);
+   void enc_RBM(uint8_t *dest, uint16_t start, uint16_t length);
    void WBM_raw(const uint8_t *src, uint16_t length);
    void enc_WBM(const uint8_t *src, uint16_t start, uint16_t length);
-   uint16_t enc_RCR16(enc_ethreg reg);
-   uint16_t enc_RCR16(enc_reg reg);
+   uint16_t enc_RCR16(enum enc_ethreg reg);
+   uint16_t enc_RCR16(enum enc_reg reg);
    void enc_WCR16(uint8_t reg, uint16_t data);
    void enc_SRC();
    int enc_wait();
-   uint16_t enc_MII_read(enc_phreg mireg);
+   uint16_t enc_MII_read(enum enc_phreg mireg);
    void enc_MII_write(uint8_t mireg, uint16_t data);
    void set_erxnd(uint16_t erxnd);
    void select_page(uint8_t page);
