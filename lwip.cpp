@@ -63,7 +63,7 @@ int main(void)
     netif.name[1] = '0';
     memcpy(netif.hwaddr,mac,6);
     netif.hwaddr_len=6;
-    netif_add(&netif, &static_ip, &mask, &addr, &netif, netif.netif_init, netif_input);
+    netif_add(&netif, &static_ip, &mask, &addr, nullptr , netif.netif_init, netif_input);
 
     netif_set_default(&netif);
     netif_set_up(&netif);

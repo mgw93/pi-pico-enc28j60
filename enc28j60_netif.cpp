@@ -89,34 +89,38 @@ end:
 	return (*buf == NULL) ? 2 : 0;
 }
 
-err_t enc28j60_netif::netif_init(struct netif *netif){
-   enc28j60 &dev=*static_cast<enc28j60*>(netif->state);
-   int result;
+err_t enc28j60_netif::init(){
    LWIP_DEBUGF(NETIF_DEBUG, ("Starting mchdrv_init.\n"));
-   result=dev.enc_setup_basic();
+   int result;
+   result=enc_setup_basic();
    if (result != 0) {
       LWIP_DEBUGF(NETIF_DEBUG, ("Error %d in enc_setup, interface setup aborted.\n", result));
       return ERR_IF;
    }
-   result = dev.enc_bist_manual();
-   if(result!=0){
+   result=enc_bist_manual();
+   if(result != 0){
       LWIP_DEBUGF(NETIF_DEBUG, ("Error %d in enc_bist_manual, interface setup aborted.\n", result));
       return ERR_IF;
    }
-   dev.enc_ethernet_setup(4*1024,netif->hwaddr);
-   dev.enc_set_multicast_reception(true);
-   netif->output=etharp_output;
+   enc_ethernet_setup(4*1024,hwaddr);
+   enc_set_multicast_reception(true);
+   output=&etharp_output;
    #if LWIP_IPV6
-   netif->output_ip6 = &ethip6_output;
+   output_ip6 = &ethip6_output;
    #endif
-   netif->linkoutput=&linkoutput;
-   netif->mtu = 1500;
-   netif->flags|=NETIF_FLAG_ETHARP | NETIF_FLAG_BROADCAST;
+   linkoutput=&send;
+   mtu = 1500;
+   flags|=NETIF_FLAG_ETHARP | NETIF_FLAG_BROADCAST;
    LWIP_DEBUGF(NETIF_DEBUG, ("Driver initialized.\n"));
    return ERR_OK;
 }
 
-err_t enc28j60_netif::linkoutput(struct netif *netif, struct pbuf *p){
+err_t enc28j60_netif::netif_init(struct netif *netif){
+   enc28j60_netif &dev=*static_cast<enc28j60_netif*>(netif);
+   return dev.init();
+}
+
+err_t enc28j60_netif::send(struct netif *netif, struct pbuf *p){
    enc28j60_netif &dev=*static_cast<enc28j60_netif*>(netif);
    dev.enc_transmit_pbuf(p);
    LWIP_DEBUGF(NETIF_DEBUG, ("sent %d bytes.\n", p->tot_len));
@@ -130,7 +134,6 @@ void enc28j60_netif::poll(){
 
    uint8_t epktcnt;
    bool linkstate=this->linkstate();
-   //DEBUG("Linkstate: %hhd\n",linkstate);
 
    if (linkstate) netif_set_link_up(this);
    else netif_set_link_down(this);
