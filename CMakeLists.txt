@@ -40,6 +40,9 @@ target_link_libraries(
         pico_lwip_mqtt
         hardware_spi
 )
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+   PICO_STDIO_USB_DEFAULT_CRLF=0
+)
 
 pico_set_program_name(pico_spi_ethernet "pico_spi_ethernet")
 pico_set_program_version(pico_spi_ethernet "0.1")
