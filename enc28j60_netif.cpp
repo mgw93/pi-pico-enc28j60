@@ -52,12 +52,12 @@ void enc28j60_netif::enc_transmit_pbuf(const struct pbuf *buf)
 
 /** Like enc_read_received, but allocate a pbuf buf. Returns 0 on success, or
  * unspecified non-zero values on errors. */
-int enc28j60_netif::enc_read_received_pbuf(struct pbuf **buf)
+int enc28j60_netif::enc_read_received_pbuf(struct pbuf *&buf)
 {
 	uint8_t header[6];
 	uint16_t length;
 
-	if (*buf != NULL)
+	if (buf != NULL)
 		return 1;
 
 	receive_start(header, &length);
@@ -74,19 +74,19 @@ int enc28j60_netif::enc_read_received_pbuf(struct pbuf **buf)
 		goto end;
 	}
 
-	*buf = pbuf_alloc(PBUF_RAW, length, PBUF_RAM);
+	buf = pbuf_alloc(PBUF_RAW, length, PBUF_RAM);
 
-	if (*buf == NULL) {
+	if (buf == NULL) {
 		DEBUG("failed to allocate buf of length %u, discarding\n", length);
 		goto end;
 	}
 
-	enc_RBM(static_cast<uint8_t*>((*buf)->payload), ENC_READLOCATION_ANY, length);
+	enc_RBM(static_cast<uint8_t*>(buf->payload), ENC_READLOCATION_ANY, length);
 
 end:
 	receive_end(header);
 
-	return (*buf == NULL) ? 2 : 0;
+	return (buf == NULL) ? 2 : 0;
 }
 
 err_t enc28j60_netif::init(){
@@ -130,7 +130,7 @@ err_t enc28j60_netif::send(struct netif *netif, struct pbuf *p){
 
 void enc28j60_netif::poll(){
    err_t result;
-   struct pbuf *buf = NULL;
+   struct pbuf *buf = nullptr;
 
    uint8_t epktcnt;
    bool linkstate=this->linkstate();
@@ -141,7 +141,7 @@ void enc28j60_netif::poll(){
    epktcnt = enc_RCR(ENC_EPKTCNT);
 
    if (epktcnt) {
-      if (enc_read_received_pbuf(&buf) == 0)
+      if (enc_read_received_pbuf(buf) == 0)
       {
          LWIP_DEBUGF(NETIF_DEBUG, ("incoming: %d packages, first read into %x\n", epktcnt, (unsigned int)(buf)));
          result = this->input(buf, this);
