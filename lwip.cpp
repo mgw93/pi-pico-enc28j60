@@ -31,6 +31,10 @@ void mqtt_pub_cb(void* arg, err_t result){
    printf("Publish result: %d\n", result);
 }
 
+void link_callback(netif* netif){
+   printf("Link status change\n");
+}
+
 void mqtt_conn_cb(mqtt_client_t *client, void *arg, mqtt_connection_status_t status){
    printf("Connect Callback");
    if(status==MQTT_CONNECT_ACCEPTED) *static_cast<bool*>(arg)=true;
@@ -64,6 +68,7 @@ int main(void)
     memcpy(netif.hwaddr,mac,6);
     netif.hwaddr_len=6;
     netif_add(&netif, &static_ip, &mask, &addr, nullptr , netif.netif_init, netif_input);
+    netif_set_link_callback(&netif,link_callback);
 
     netif_set_default(&netif);
     netif_set_up(&netif);
