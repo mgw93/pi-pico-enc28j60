@@ -32,8 +32,6 @@ public:
    void enc_ethernet_setup(uint16_t rxbufsize, const uint8_t mac[6]);
    void enc_set_multicast_reception(bool enable);
    void enc_transmit(const uint8_t *data, uint16_t length);
-   void receive_start(uint8_t header[6], uint16_t *length);
-   void receive_end(const uint8_t header[6]);
    uint16_t enc_read_received(uint8_t *data, uint16_t maxlength);
 
    bool linkstate();
@@ -42,15 +40,17 @@ protected:
    void transmit_start();
    void transmit_partial(const uint8_t *data, uint16_t length);
    void transmit_end(uint16_t length);
+   void receive_start(uint8_t header[6], uint16_t *length);
+   void receive_end(const uint8_t header[6]);
 
-   uint8_t command(uint8_t first, uint8_t second, bool dummy=false);
    uint8_t enc_RCR(enc_ethreg reg) ;
    uint8_t enc_RCR(enc_reg reg) ;
+   void enc_RBM(uint8_t *dest, uint16_t start, uint16_t length);
+private:
+   uint8_t command(uint8_t first, uint8_t second, bool dummy=false);
    void enc_WCR(uint8_t reg, uint8_t data);
    void enc_BFS(uint8_t reg, uint8_t data);
    void enc_BFC(uint8_t reg, uint8_t data);
-   void enc_RBM(uint8_t *dest, uint16_t start, uint16_t length);
-private:
    void WBM_raw(const uint8_t *src, uint16_t length);
    void enc_WBM(const uint8_t *src, uint16_t start, uint16_t length);
    uint16_t enc_RCR16(enc_ethreg reg);
