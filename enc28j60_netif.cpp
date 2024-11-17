@@ -12,6 +12,7 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <algorithm>
 
 #include "enc28j60_netif.hpp"
 #include "lwip/etharp.h"
@@ -29,6 +30,13 @@
 #endif
 
 
+enc28j60_netif::enc28j60_netif(struct enchw_device_t& spi_dev, const uint8_t mac[6], const char name[2])
+   : enc28j60{spi_dev} {
+   std::copy_n(name,2,this->name);
+   std::copy_n(mac,6,hwaddr);
+   hwaddr_len=6;
+   netif_add_noaddr(this,nullptr,netif_init,netif_input);
+}
 
 /** Like transmit, but read from a pbuf. This is not a trivial wrapper
  * around transmit as the pbuf is not guaranteed to have a contiguous
@@ -111,6 +119,7 @@ err_t enc28j60_netif::init(){
    linkoutput=&send;
    mtu = 1500;
    flags|=NETIF_FLAG_ETHARP | NETIF_FLAG_BROADCAST;
+   if(linkstate()) flags|=NETIF_FLAG_LINK_UP;
    LWIP_DEBUGF(NETIF_DEBUG, ("Driver initialized.\n"));
    return ERR_OK;
 }
@@ -148,5 +157,3 @@ void enc28j60_netif::poll(){
    }
 
 }
-
-
