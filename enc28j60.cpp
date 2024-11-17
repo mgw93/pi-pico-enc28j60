@@ -31,15 +31,15 @@
  *
  * This function needs to be called first whenever the MCU or the network
  * device is powered up. It will not configure transmission or reception; use
- * @ref enc_ethernet_setup for that, possibly after having run self tests.
+ * @ref ethernet_setup for that, possibly after having run self tests.
  * */
-int enc28j60::enc_setup_basic()
+int enc28j60::setup_basic()
 {
         hwdev.setup();
 
-	uint8_t revid = enc_RCR(ENC_EREVID);
+	uint8_t revid = RCR(ENC_EREVID);
         DEBUG("Revision: %hhd\n",revid);
-	if (enc_wait()){
+	if (wait()){
            DEBUG("ENC Timeout");
            return 1;
         }
@@ -47,12 +47,12 @@ int enc28j60::enc_setup_basic()
 	this->last_used_register = ENC_BANK_INDETERMINATE;
 	this->rxbufsize = ~0;
 
-	//uint8_t revid = enc_RCR(ENC_EREVID);
+	//uint8_t revid = RCR(ENC_EREVID);
 	if (revid != ENC_EREVID_B1 && revid != ENC_EREVID_B4 &&
 			revid != ENC_EREVID_B5 && revid != ENC_EREVID_B7)
 		return 1;
 
-	enc_BFS(ENC_ECON2, ENC_ECON2_AUTOINC);
+	BFS(ENC_ECON2, ENC_ECON2_AUTOINC);
 
 	return 0;
 }
@@ -61,7 +61,7 @@ void enc28j60::set_erxnd(uint16_t erxnd)
 {
 	if (erxnd != this->rxbufsize) {
 		this->rxbufsize = erxnd;
-		enc_WCR16(ENC_ERXNDL, erxnd);
+		WCR16(ENC_ERXNDL, erxnd);
 	}
 }
 
@@ -72,41 +72,41 @@ void enc28j60::set_erxnd(uint16_t erxnd)
  * alter pattern, addressfill produces correct checksum but wrong data (0xff
  * everywhere)
  * */
-uint8_t enc28j60::enc_bist()
+uint8_t enc28j60::bist()
 {
 	/* according to 15.1 */
 	/* 1. */
-	enc_WCR16(ENC_EDMASTL, 0);
+	WCR16(ENC_EDMASTL, 0);
 	/* 2. */
-	enc_WCR16(ENC_EDMANDL, 0x1fff);
+	WCR16(ENC_EDMANDL, 0x1fff);
 	set_erxnd(0x1fff);
 	/* 3. */
-	enc_BFS(ENC_ECON1, ENC_ECON1_CSUMEN);
+	BFS(ENC_ECON1, ENC_ECON1_CSUMEN);
 	/* 4. */
-	enc_WCR(ENC_EBSTSD, 0x0c);
+	WCR(ENC_EBSTSD, 0x0c);
 
 	/* 5. */
-	enc_WCR(ENC_EBSTCON, ENC_EBSTCON_PATTERNSHIFTFILL | (1 << 5) | ENC_EBSTCON_TME);
-//	enc_WCR(ENC_EBSTCON, ENC_EBSTCON_ADDRESSFILL | ENC_EBSTCON_PSEL | ENC_EBSTCON_TME);
+	WCR(ENC_EBSTCON, ENC_EBSTCON_PATTERNSHIFTFILL | (1 << 5) | ENC_EBSTCON_TME);
+//	WCR(ENC_EBSTCON, ENC_EBSTCON_ADDRESSFILL | ENC_EBSTCON_PSEL | ENC_EBSTCON_TME);
 	/* 6. */
-	enc_BFS(ENC_EBSTCON, ENC_EBSTCON_BISTST);
+	BFS(ENC_EBSTCON, ENC_EBSTCON_BISTST);
 	/* wait a second -- never took any time yet */
-	while(enc_RCR(ENC_EBSTCON) & ENC_EBSTCON_BISTST)
-		DEBUG("(%02x)", enc_RCR(ENC_EBSTCON));
+	while(RCR(ENC_EBSTCON) & ENC_EBSTCON_BISTST)
+		DEBUG("(%02x)", RCR(ENC_EBSTCON));
 	/* 7. */
-	enc_BFS(ENC_ECON1, ENC_ECON1_DMAST);
+	BFS(ENC_ECON1, ENC_ECON1_DMAST);
 	/* 8. */
-	while(enc_RCR(ENC_ECON1) & ENC_ECON1_DMAST)
-		DEBUG("[%02x]", enc_RCR(ENC_ECON1));
+	while(RCR(ENC_ECON1) & ENC_ECON1_DMAST)
+		DEBUG("[%02x]", RCR(ENC_ECON1));
 
 	/* 9.: @todo pull this in */
 
 	return 0;
 }
 
-/* Similar check to enc_bist, but doesn't rely on the BIST of the chip but
+/* Similar check to bist, but doesn't rely on the BIST of the chip but
  * doesn some own reading and writing */
-uint8_t enc28j60::enc_bist_manual()
+uint8_t enc28j60::bist_manual()
 {
 	uint16_t address;
 	uint8_t buffer[256];
@@ -119,12 +119,12 @@ uint8_t enc28j60::enc_bist_manual()
 		for (i = 0; i < 256; ++i)
 			buffer[i] = ((address >> 8) + i) % 256;
 
-		enc_WBM(buffer, address, 256);
+		WBM(buffer, address, 256);
 	}
 
 	for (address = 0; address < ENC_RAMSIZE; address += 256)
 	{
-		enc_RBM(buffer, address, 256);
+		RBM(buffer, address, 256);
 
 		for (i = 0; i < 256; ++i)
 			if (buffer[i] != ((address >> 8) + i) % 256)
@@ -134,14 +134,14 @@ uint8_t enc28j60::enc_bist_manual()
 	/* dma checksum */
 
 	/* we don't use dma at all, so we can just as well not test it.
-	enc_WCR16(ENC_EDMASTL, 0);
-	enc_WCR16(ENC_EDMANDL, ENC_RAMSIZE-1);
+	WCR16(ENC_EDMASTL, 0);
+	WCR16(ENC_EDMANDL, ENC_RAMSIZE-1);
 
-	enc_BFS(ENC_ECON1, ENC_ECON1_CSUMEN | ENC_ECON1_DMAST);
+	BFS(ENC_ECON1, ENC_ECON1_CSUMEN | ENC_ECON1_DMAST);
 
-	while (enc_RCR(ENC_ECON1) & ENC_ECON1_DMAST) DEBUG(".");
+	while (RCR(ENC_ECON1) & ENC_ECON1_DMAST) DEBUG(".");
 
-	DEBUG("csum %08x", enc_RCR16(ENC_EDMACSL));
+	DEBUG("csum %08x", RCR16(ENC_EDMACSL));
 	*/
 
 	return 0;
@@ -164,9 +164,9 @@ void enc28j60::select_page(uint8_t page)
 	uint8_t set = page & 0x03;
 	uint8_t clear = (~page) & 0x03;
 	if(set)
-		enc_BFS(ENC_ECON1, set);
+		BFS(ENC_ECON1, set);
 	if(clear)
-		enc_BFC(ENC_ECON1, clear);
+		BFC(ENC_ECON1, clear);
 }
 
 void enc28j60::ensure_register_accessible(uint8_t r)
@@ -178,31 +178,31 @@ void enc28j60::ensure_register_accessible(uint8_t r)
 }
 
 /** @todo applies only to eth registers, not to mii ones */
-uint8_t enc28j60::enc_RCR(enc_ethreg reg) {
+uint8_t enc28j60::RCR(enc_ethreg reg) {
 	ensure_register_accessible(reg);
 	return command(reg & ENC_REGISTERMASK, 0);
 }
-uint8_t enc28j60::enc_RCR(enc_reg reg) {
+uint8_t enc28j60::RCR(enc_reg reg) {
 	ensure_register_accessible(reg);
 	return command(reg & ENC_REGISTERMASK, 0,true);
 }
-void enc28j60::enc_WCR(uint8_t reg, uint8_t data) {
+void enc28j60::WCR(uint8_t reg, uint8_t data) {
 	ensure_register_accessible(reg);
 	command(0x40 | (reg & ENC_REGISTERMASK), data);
 }
-void enc28j60::enc_BFS(uint8_t reg, uint8_t data) {
+void enc28j60::BFS(uint8_t reg, uint8_t data) {
 	ensure_register_accessible(reg);
 	command(0x80 | (reg & ENC_REGISTERMASK), data);
 }
-void enc28j60::enc_BFC(uint8_t reg, uint8_t data) {
+void enc28j60::BFC(uint8_t reg, uint8_t data) {
 	ensure_register_accessible(reg);
 	command(0xa0 | (reg & ENC_REGISTERMASK), data);
 }
 
-void enc28j60::enc_RBM(uint8_t *dest, uint16_t start, uint16_t length)
+void enc28j60::RBM(uint8_t *dest, uint16_t start, uint16_t length)
 {
 	if (start != ENC_READLOCATION_ANY)
-		enc_WCR16(ENC_ERDPTL, start);
+		WCR16(ENC_ERDPTL, start);
 
 	hwdev.select();
 	hwdev.exchangebyte(0x3a);
@@ -222,9 +222,9 @@ void enc28j60::WBM_raw(const uint8_t *src, uint16_t length)
 	hwdev.unselect();
 }
 
-void enc28j60::enc_WBM(const uint8_t *src, uint16_t start, uint16_t length)
+void enc28j60::WBM(const uint8_t *src, uint16_t start, uint16_t length)
 {
-	enc_WCR16(ENC_EWRPTL, start);
+	WCR16(ENC_EWRPTL, start);
 
 	WBM_raw(src, length);
 }
@@ -235,29 +235,29 @@ void enc28j60::enc_WBM(const uint8_t *src, uint16_t start, uint16_t length)
  *
  * @todo could use enc_register16_t
  * */
-uint16_t enc28j60::enc_RCR16(enc_ethreg reg) {
-   uint16_t low=enc_RCR(enc_ethreg(reg&~1));
-   uint16_t high=enc_RCR(enc_ethreg(reg|1));
+uint16_t enc28j60::RCR16(enc_ethreg reg) {
+   uint16_t low=RCR(enc_ethreg(reg&~1));
+   uint16_t high=RCR(enc_ethreg(reg|1));
    return (high << 8) | low;
 }
-uint16_t enc28j60::enc_RCR16(enc_reg reg) {
-   uint16_t low=enc_RCR(enc_reg(reg&~1));
-   uint16_t high=enc_RCR(enc_reg(reg|1));
+uint16_t enc28j60::RCR16(enc_reg reg) {
+   uint16_t low=RCR(enc_reg(reg&~1));
+   uint16_t high=RCR(enc_reg(reg|1));
    return (high << 8) | low;
 }
-/** 16-bit register write. Compare enc_RCR16. Writes the lower byte first, then
+/** 16-bit register write. Compare RCR16. Writes the lower byte first, then
  * the higher, as required for the MII interfaces as well as for ERXRDPT. */
-void enc28j60::enc_WCR16(uint8_t reg, uint16_t data) {
-	enc_WCR(reg&~1, data & 0xff); enc_WCR(reg|1, data >> 8);
+void enc28j60::WCR16(uint8_t reg, uint16_t data) {
+	WCR(reg&~1, data & 0xff); WCR(reg|1, data >> 8);
 }
 
-void enc28j60::enc_SRC() {
+void enc28j60::SRC() {
 	hwdev.exchangebyte(0xff);
 }
 
 /** Wait for the ENC28J60 clock to be ready. Returns 0 on success,
  * and an unspecified non-zero integer on timeout. */
-int enc28j60::enc_wait()
+int enc28j60::wait()
 {
 	/** @todo as soon as we need a clock somewhere else, make this time and
 	 * not iteration based */
@@ -273,7 +273,7 @@ int enc28j60::enc_wait()
 	int stable = 0;
 	uint8_t estat, estat_last = 0;
 	for (int i = 0; i < 100000; ++i) {
-		estat = enc_RCR(ENC_ESTAT);
+		estat = RCR(ENC_ESTAT);
 		if (estat != 0){
 			DEBUG("At %d, ESTAT is %02x\n", i, estat);
                 }
@@ -289,58 +289,58 @@ int enc28j60::enc_wait()
 	return 1;
 }
 
-uint16_t enc28j60::enc_MII_read(enc_phreg mireg)
+uint16_t enc28j60::MII_read(enc_phreg mireg)
 {
 	uint16_t result = 0;
 
-	enc_WCR(ENC_MIREGADR, mireg);
-	enc_BFS(ENC_MICMD, ENC_MICMD_MIIRD);
+	WCR(ENC_MIREGADR, mireg);
+	BFS(ENC_MICMD, ENC_MICMD_MIIRD);
 
-	while(enc_RCR(ENC_MISTAT) & ENC_MISTAT_BUSY);
+	while(RCR(ENC_MISTAT) & ENC_MISTAT_BUSY);
 
-	result = enc_RCR16(ENC_MIRDL);
+	result = RCR16(ENC_MIRDL);
 
-	enc_BFC(ENC_MICMD, ENC_MICMD_MIIRD);
+	BFC(ENC_MICMD, ENC_MICMD_MIIRD);
 
 	return result;
 }
 
-void enc28j60::enc_MII_write(uint8_t mireg, uint16_t data)
+void enc28j60::MII_write(uint8_t mireg, uint16_t data)
 {
-	while(enc_RCR(ENC_MISTAT) & ENC_MISTAT_BUSY);
+	while(RCR(ENC_MISTAT) & ENC_MISTAT_BUSY);
 
-	enc_WCR(ENC_MIREGADR, mireg);
-	enc_WCR16(ENC_MIWRL, data);
+	WCR(ENC_MIREGADR, mireg);
+	WCR16(ENC_MIWRL, data);
 }
 
 
-void enc28j60::enc_LED_set(enc_lcfg ledconfig, enc_led led)
+void enc28j60::LED_set(enc_lcfg ledconfig, enc_led led)
 {
 	uint16_t state;
-	state = enc_MII_read(ENC_PHLCON);
+	state = MII_read(ENC_PHLCON);
 	state = (state & ~(ENC_LCFG_MASK << led)) | (ledconfig << led);
-	enc_MII_write(ENC_PHLCON, state);
+	MII_write(ENC_PHLCON, state);
 }
 
 /** Configure the ENC28J60 for network operation, whose initial parameters get
  * passed as well. */
-void enc28j60::enc_ethernet_setup(uint16_t rxbufsize, const uint8_t mac[6])
+void enc28j60::ethernet_setup(uint16_t rxbufsize, const uint8_t mac[6])
 {
 	/* practical consideration: we don't come out of clean reset, better do
 	 * this -- discard all previous packages */
 
-	enc_BFS(ENC_ECON1, ENC_ECON1_TXRST | ENC_ECON1_RXRST);
-	while(enc_RCR(ENC_EPKTCNT))
+	BFS(ENC_ECON1, ENC_ECON1_TXRST | ENC_ECON1_RXRST);
+	while(RCR(ENC_EPKTCNT))
 	{
-		enc_BFS(ENC_ECON2, ENC_ECON2_PKTDEC);
+		BFS(ENC_ECON2, ENC_ECON2_PKTDEC);
 	}
-	enc_BFC(ENC_ECON1, ENC_ECON1_TXRST | ENC_ECON1_RXRST); /** @todo this should happen later, but when i don't do it here, things won't come up again. probably a problem in the startup sequence. */
+	BFC(ENC_ECON1, ENC_ECON1_TXRST | ENC_ECON1_RXRST); /** @todo this should happen later, but when i don't do it here, things won't come up again. probably a problem in the startup sequence. */
 
 	/********* receive buffer setup according to 6.1 ********/
 
-	enc_WCR16(ENC_ERXSTL, 0); /* see errata, must be 0 */
+	WCR16(ENC_ERXSTL, 0); /* see errata, must be 0 */
 	set_erxnd(rxbufsize);
-	enc_WCR16(ENC_ERXRDPTL, 0);
+	WCR16(ENC_ERXRDPTL, 0);
 
 	this->next_frame_location = 0;
 
@@ -351,28 +351,28 @@ void enc28j60::enc_ethernet_setup(uint16_t rxbufsize, const uint8_t mac[6])
 	/******** mac initialization acording to 6.5 ************/
 
 	/* enable reception and flow control (shouldn't hurt in simplex either) */
-	enc_BFS(ENC_MACON1, ENC_MACON1_MARXEN | ENC_MACON1_TXPAUS | ENC_MACON1_RXPAUS);
+	BFS(ENC_MACON1, ENC_MACON1_MARXEN | ENC_MACON1_TXPAUS | ENC_MACON1_RXPAUS);
 
 	/* generate checksums for outgoing frames and manage padding automatically */
-	enc_WCR(ENC_MACON3, ENC_MACON3_TXCRCEN | ENC_MACON3_FULLPADDING | ENC_MACON3_FRMLEN);
+	WCR(ENC_MACON3, ENC_MACON3_TXCRCEN | ENC_MACON3_FULLPADDING | ENC_MACON3_FRMLEN);
 
 	/* setting defer is mandatory for 802.3, but it seems the default is reasonable too */
 
 	/* MAMXF has reasonable default */
 
 	/* it's not documented in detail what these do, just how to program them */
-	enc_WCR(ENC_MAIPGL, 0x12);
-	enc_WCR(ENC_MAIPGH, 0x0C);
+	WCR(ENC_MAIPGL, 0x12);
+	WCR(ENC_MAIPGH, 0x0C);
 
 	/* MACLCON registers have reasonable defaults */
 
 	/* set the mac address */
-	enc_WCR(ENC_MAADR1, mac[0]);
-	enc_WCR(ENC_MAADR2, mac[1]);
-	enc_WCR(ENC_MAADR3, mac[2]);
-	enc_WCR(ENC_MAADR4, mac[3]);
-	enc_WCR(ENC_MAADR5, mac[4]);
-	enc_WCR(ENC_MAADR6, mac[5]);
+	WCR(ENC_MAADR1, mac[0]);
+	WCR(ENC_MAADR2, mac[1]);
+	WCR(ENC_MAADR3, mac[2]);
+	WCR(ENC_MAADR4, mac[3]);
+	WCR(ENC_MAADR5, mac[4]);
+	WCR(ENC_MAADR6, mac[5]);
 
 	/******* mac initialization as per 6.5 ********/
 
@@ -380,27 +380,27 @@ void enc28j60::enc_ethernet_setup(uint16_t rxbufsize, const uint8_t mac[6])
 	 * treated as DAD failures. (i can't think of a reason why one would
 	 * not want that; let me know if there is and it culd become configurable) */
 	/* set ENC_PHCON2 bit 8 (HDLDIS) */
-	enc_MII_write(ENC_PHCON1, 0x0100);
+	MII_write(ENC_PHCON1, 0x0100);
 
 	/*************** enabling reception as per 7.2 ***********/
 
 	/* enable reception */
-	enc_BFS(ENC_ECON1, ENC_ECON1_RXEN);
+	BFS(ENC_ECON1, ENC_ECON1_RXEN);
 
 	/* pull transmitter and receiver out of reset */
-	enc_BFC(ENC_ECON1, ENC_ECON1_TXRST | ENC_ECON1_RXRST);
+	BFC(ENC_ECON1, ENC_ECON1_TXRST | ENC_ECON1_RXRST);
 }
 
 /** Configure whether multicasts should be received.
  *
  * The more cmplex hash table mechanism that would allow filtering for
  * particular groups is not exposed yet. */
-void enc28j60::enc_set_multicast_reception(bool enable)
+void enc28j60::set_multicast_reception(bool enable)
 {
 	if (enable)
-		enc_BFS(ENC_ERXFCON, 0x2);
+		BFS(ENC_ERXFCON, 0x2);
 	else
-		enc_BFC(ENC_ERXFCON, 0x2);
+		BFC(ENC_ERXFCON, 0x2);
 }
 
 uint16_t enc28j60::transmit_start_address() const
@@ -411,9 +411,9 @@ uint16_t enc28j60::transmit_start_address() const
 	return (earliest_start + 1) & ~1;
 }
 
-/* Partial function of enc_transmit. Always call this as transmit_start /
- * {transmit_partial * n} / transmit_end -- and use enc_transmit or
- * enc_transmit_pbuf unless you're just implementing those two */
+/* Partial function of transmit. Always call this as transmit_start /
+ * {transmit_partial * n} / transmit_end -- and use transmit or
+ * transmit_pbuf unless you're just implementing those two */
 void enc28j60::transmit_start()
 {
 	/* according to section 7.1 */
@@ -421,9 +421,9 @@ void enc28j60::transmit_start()
 
 	/* 1. */
 	/** @todo we only send a single frame blockingly, starting at the end of rxbuf */
-	enc_WCR16(ENC_ETXSTL, transmit_start_address());
+	WCR16(ENC_ETXSTL, transmit_start_address());
 	/* 2. */
-	enc_WBM(&control_byte, transmit_start_address(), 1);
+	WBM(&control_byte, transmit_start_address(), 1);
 }
 
 void enc28j60::transmit_partial(const uint8_t *data, uint16_t length)
@@ -437,25 +437,25 @@ void enc28j60::transmit_end(uint16_t length)
 
 	/* calculate checksum */
 
-//	enc_WCR16(ENC_EDMASTL, start + 1);
-//	enc_WCR16(ENC_EDMANDL, start + 1 + length - 3);
-//	enc_BFS(ENC_ECON1, ENC_ECON1_CSUMEN | ENC_ECON1_DMAST);
-//	while (enc_RCR(ENC_ECON1) & ENC_ECON1_DMAST);
-//	uint16_t checksum = enc_RCR16(ENC_EDMACSL);
+//	WCR16(ENC_EDMASTL, start + 1);
+//	WCR16(ENC_EDMANDL, start + 1 + length - 3);
+//	BFS(ENC_ECON1, ENC_ECON1_CSUMEN | ENC_ECON1_DMAST);
+//	while (RCR(ENC_ECON1) & ENC_ECON1_DMAST);
+//	uint16_t checksum = RCR16(ENC_EDMACSL);
 //	checksum = ((checksum & 0xff) << 8) | (checksum >> 8);
-//	enc_WBM(&checksum, start + 1 + length - 2, 2);
+//	WBM(&checksum, start + 1 + length - 2, 2);
 
 	/* 3. */
-	enc_WCR16(ENC_ETXNDL, transmit_start_address() + 1 + length - 1);
+	WCR16(ENC_ETXNDL, transmit_start_address() + 1 + length - 1);
 	
 	/* 4. */
 	/* skipped because not using interrupts yet */
 	/* 5. */
-	enc_BFS(ENC_ECON1, ENC_ECON1_TXRTS);
+	BFS(ENC_ECON1, ENC_ECON1_TXRTS);
 
 	/* block */
 	for (int i = 0; i < 10000; ++i) {
-		if (!(enc_RCR(ENC_ECON1) & ENC_ECON1_TXRTS))
+		if (!(RCR(ENC_ECON1) & ENC_ECON1_TXRTS))
 			goto done;
 	}
 	/* Workaround for 80349c.pdf (errata) #12 and #13: Reset the
@@ -468,18 +468,18 @@ void enc28j60::transmit_end(uint16_t length)
 	 * it should work.
 	 * */
 	DEBUG("Econ1 TXRTS did not clear; resetting transmission logic.\n");
-	enc_BFS(ENC_ECON1, ENC_ECON1_TXRST);
-	enc_BFC(ENC_ECON1, ENC_ECON1_TXRST);
+	BFS(ENC_ECON1, ENC_ECON1_TXRST);
+	BFC(ENC_ECON1, ENC_ECON1_TXRST);
 
 	return;
 done:
-	enc_RBM(result, transmit_start_address() + length, 7);
+	RBM(result, transmit_start_address() + length, 7);
 	DEBUG("transmitted. %02x %02x %02x %02x %02x %02x %02x\n", result[0], result[1], result[2], result[3], result[4], result[5], result[6]);
 
 	/** @todo parse that and return reasonable state */
 }
 
-void enc28j60::enc_transmit(const uint8_t *data, uint16_t length)
+void enc28j60::transmit(const uint8_t *data, uint16_t length)
 {
 	/** @todo check buffer size */
 	transmit_start();
@@ -490,7 +490,7 @@ void enc28j60::enc_transmit(const uint8_t *data, uint16_t length)
 
 void enc28j60::receive_start(uint8_t header[6], uint16_t *length)
 {
-	enc_RBM(header, this->next_frame_location, 6);
+	RBM(header, this->next_frame_location, 6);
 	*length = header[2] | ((header[3] & 0x7f) << 8);
 }
 
@@ -501,17 +501,17 @@ void enc28j60::receive_end(const uint8_t header[6])
 	/* workaround for 80349c.pdf (errata) #14 start.
 	 *
 	 * originally, this would have been
-	 * enc_WCR16(ENC_ERXRDPTL, next_location);
+	 * WCR16(ENC_ERXRDPTL, next_location);
 	 * but thus: */
-	if (this->next_frame_location == /* enc_RCR16(ENC_ERXSTL) can be simplified because of errata item #5 */ 0)
-		enc_WCR16(ENC_ERXRDPTL, enc_RCR16(ENC_ERXNDL));
+	if (this->next_frame_location == /* RCR16(ENC_ERXSTL) can be simplified because of errata item #5 */ 0)
+		WCR16(ENC_ERXRDPTL, RCR16(ENC_ERXNDL));
 	else
-		enc_WCR16(ENC_ERXRDPTL, this->next_frame_location - 1);
+		WCR16(ENC_ERXRDPTL, this->next_frame_location - 1);
 	/* workaround end */
 
-	DEBUG("before %d, ", enc_RCR(ENC_EPKTCNT));
-	enc_BFS(ENC_ECON2, ENC_ECON2_PKTDEC);
-	DEBUG("after %d.\n", enc_RCR(ENC_EPKTCNT));
+	DEBUG("before %d, ", RCR(ENC_EPKTCNT));
+	BFS(ENC_ECON2, ENC_ECON2_PKTDEC);
+	DEBUG("after %d.\n", RCR(ENC_EPKTCNT));
 
 	DEBUG("read with header (%02x %02x) %02x %02x %02x %02x.\n", header[1], /* swapped due to endianness -- i want to read 1234 */ header[0], header[2], header[3], header[4], header[5]);
 }
@@ -520,7 +520,7 @@ void enc28j60::receive_end(const uint8_t header[6])
  * available. Writes up to maxlength bytes and returns the total length of the
  * frame. (If the return value is > maxlength, parts of the frame were
  * discarded.) */
-uint16_t enc28j60::enc_read_received(uint8_t *data, uint16_t maxlength)
+uint16_t enc28j60::read_received(uint8_t *data, uint16_t maxlength)
 {
 	uint8_t header[6];
 	uint16_t length;
@@ -529,11 +529,11 @@ uint16_t enc28j60::enc_read_received(uint8_t *data, uint16_t maxlength)
 
 	if (length > maxlength)
 	{
-		enc_RBM(data, ENC_READLOCATION_ANY, maxlength);
+		RBM(data, ENC_READLOCATION_ANY, maxlength);
 		DEBUG("discarding some bytes\n");
 		/** @todo should that really be accepted at all? */
 	} else {
-		enc_RBM(data, ENC_READLOCATION_ANY, length);
+		RBM(data, ENC_READLOCATION_ANY, length);
 	}
 
 	receive_end(header);
@@ -543,13 +543,13 @@ uint16_t enc28j60::enc_read_received(uint8_t *data, uint16_t maxlength)
 
 
 bool enc28j60::linkstate(){
-   return enc_MII_read(ENC_PHSTAT1) & (1<<2);
+   return MII_read(ENC_PHSTAT1) & (1<<2);
 }
 
 uint8_t enc28j60::packetcount(){
-   return enc_RCR(ENC_EPKTCNT);
+   return RCR(ENC_EPKTCNT);
 }
 
 void enc28j60::receive_partial(uint8_t *dest, uint16_t length){
-   enc_RBM(dest, ENC_READLOCATION_ANY, length);
+   RBM(dest, ENC_READLOCATION_ANY, length);
 }

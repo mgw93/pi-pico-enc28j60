@@ -30,10 +30,10 @@
 
 
 
-/** Like enc_transmit, but read from a pbuf. This is not a trivial wrapper
- * around enc_transmit as the pbuf is not guaranteed to have a contiguous
+/** Like transmit, but read from a pbuf. This is not a trivial wrapper
+ * around transmit as the pbuf is not guaranteed to have a contiguous
  * memory region to be transmitted. */
-void enc28j60_netif::enc_transmit_pbuf(const struct pbuf *buf)
+void enc28j60_netif::transmit_pbuf(const struct pbuf *buf)
 {
 	uint16_t length = buf->tot_len;
 
@@ -50,9 +50,9 @@ void enc28j60_netif::enc_transmit_pbuf(const struct pbuf *buf)
 
 
 
-/** Like enc_read_received, but allocate a pbuf buf. Returns 0 on success, or
+/** Like read_received, but allocate a pbuf buf. Returns 0 on success, or
  * unspecified non-zero values on errors. */
-int enc28j60_netif::enc_read_received_pbuf(struct pbuf *&buf)
+int enc28j60_netif::read_received_pbuf(struct pbuf *&buf)
 {
 	uint8_t header[6];
 	uint16_t length;
@@ -92,18 +92,18 @@ end:
 err_t enc28j60_netif::init(){
    LWIP_DEBUGF(NETIF_DEBUG, ("Starting mchdrv_init.\n"));
    int result;
-   result=enc_setup_basic();
+   result=setup_basic();
    if (result != 0) {
       LWIP_DEBUGF(NETIF_DEBUG, ("Error %d in enc_setup, interface setup aborted.\n", result));
       return ERR_IF;
    }
-   result=enc_bist_manual();
+   result=bist_manual();
    if(result != 0){
       LWIP_DEBUGF(NETIF_DEBUG, ("Error %d in enc_bist_manual, interface setup aborted.\n", result));
       return ERR_IF;
    }
-   enc_ethernet_setup(4*1024,hwaddr);
-   enc_set_multicast_reception(true);
+   ethernet_setup(4*1024,hwaddr);
+   set_multicast_reception(true);
    output=&etharp_output;
    #if LWIP_IPV6
    output_ip6 = &ethip6_output;
@@ -116,13 +116,11 @@ err_t enc28j60_netif::init(){
 }
 
 err_t enc28j60_netif::netif_init(struct netif *netif){
-   enc28j60_netif &dev=*static_cast<enc28j60_netif*>(netif);
-   return dev.init();
+   return static_cast<enc28j60_netif*>(netif)->init();
 }
 
 err_t enc28j60_netif::send(struct netif *netif, struct pbuf *p){
-   enc28j60_netif &dev=*static_cast<enc28j60_netif*>(netif);
-   dev.enc_transmit_pbuf(p);
+   static_cast<enc28j60_netif*>(netif)->transmit_pbuf(p);
    LWIP_DEBUGF(NETIF_DEBUG, ("sent %d bytes.\n", p->tot_len));
    // TODO: Evaluate result
    return ERR_OK;
@@ -138,9 +136,9 @@ void enc28j60_netif::poll(){
    else netif_set_link_down(this);
 
    if (uint8_t epktcnt = packetcount()) {
-      if (enc_read_received_pbuf(buf) == 0)
+      if (read_received_pbuf(buf) == 0)
       {
-         LWIP_DEBUGF(NETIF_DEBUG, ("incoming: %d packages, first read into %x\n", epktcnt, (unsigned int)(buf)));
+         LWIP_DEBUGF(NETIF_DEBUG, ("incoming: %d packages, first read into %x\n", epktcnt, reinterpret_cast<uintptr_t>(buf)));
          result = this->input(buf, this);
          LWIP_DEBUGF(NETIF_DEBUG, ("received with result %d\n", result));
       } else {

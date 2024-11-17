@@ -19,8 +19,8 @@ public:
 private:
    err_t init();
    static err_t send(struct netif *netif, struct pbuf *p);
-   void enc_transmit_pbuf(const struct pbuf *buf);
-   int enc_read_received_pbuf(struct pbuf *&buf);
+   void transmit_pbuf(const struct pbuf *buf);
+   int read_received_pbuf(struct pbuf *&buf);
 };
 
 #endif // ENC28J60_NETIF_HPP
