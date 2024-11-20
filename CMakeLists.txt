@@ -38,6 +38,7 @@ target_link_libraries(
 #        pico_lwip_arch
         pico_lwip_nosys
         pico_lwip_mqtt
+#        pico_lwip_iperf
         hardware_spi
 )
 target_compile_definitions(${PROJECT_NAME} PRIVATE

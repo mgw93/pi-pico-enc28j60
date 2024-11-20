@@ -6,6 +6,7 @@
 #include "lwip/dhcp.h"
 #include "lwip/timeouts.h"
 #include "lwip/apps/mqtt.h"
+//#include "lwip/apps/lwiperf.h"
 #include <cstring>
 #include <cstdio>
 #include <cstddef>
@@ -13,6 +14,7 @@
 
 #include "enc28j60_netif.hpp"
 #include "enchw.h"
+#include "mqtt.hpp"
 
 
 // based on example from: https://www.nongnu.org/lwip/2_0_x/group__lwip__nosys.html
@@ -22,17 +24,11 @@ constexpr uint8_t mac[6] = {0xAA, 0x6F, 0x77, 0x47, 0x75, 0x8C};
 
 
 
-void mqtt_pub_cb(void* arg, err_t result){
-   printf("Publish result: %d\n", result);
-}
-
 void link_callback(netif* netif){
-   printf("Link status change\n");
+   printf("Link status changed to %s\n.", netif->flags&NETIF_FLAG_LINK_UP ? "Up":"Down");
 }
 
-void mqtt_conn_cb(mqtt_client_t *client, void *arg, mqtt_connection_status_t status){
-   printf("Connect Callback\n");
-   if(status==MQTT_CONNECT_ACCEPTED) *static_cast<bool*>(arg)=true;
+void tcp_accept_cb(void *arg, struct tcp_pcb *newpcb, err_t err){
 }
 
 int main(void)
@@ -68,26 +64,19 @@ int main(void)
     //dhcp_start(&netif);
 
     //MQTT
-    mqtt_client_t* mqtt_client=mqtt_client_new();
+    mqtt_client mqtt_client{"pico-test","influx","influx"};
     ip_addr_t mqtt_server;
     IP4_ADDR(&mqtt_server, 192, 168, 20, 71);
-    mqtt_connect_client_info_t client_info;
-    memset(&client_info,0,sizeof(client_info));
-    client_info.client_id="pico-test";
-    client_info.client_user="influx";
-    client_info.client_pass="influx";
-    client_info.keep_alive=10;
-    bool connected=false;
 
 
-    err_t connect_err=mqtt_client_connect(mqtt_client,&mqtt_server,1883,mqtt_conn_cb,&connected,&client_info);
+    err_t connect_err=mqtt_client.connect(mqtt_server,1883);
     printf("MQTT connect: %d\n",connect_err);
 
-/*
     struct tcp_pcb * pcb=tcp_new();
     tcp_bind(pcb,&static_ip,1234);
     pcb=tcp_listen(pcb);
-*/
+
+    //lwiperf_start_tcp_server_default(iperf_result_cb,nullptr);
 
     char msgbuf[50];
     int msgcount=0;
@@ -99,20 +88,13 @@ int main(void)
         sys_check_timeouts();
         netif.poll();
 
-        //sleep_ms(2);
-        if(counter++>=10000 && connected){
-           //const char *pub_payload= "MQTT Test ABC";
+        if(counter++>=10000 && mqtt_client.is_connected()){
            snprintf(msgbuf,sizeof(msgbuf),"MQTT Test: %d",msgcount);
            printf("%s\n",msgbuf);
            err_t err;
-           u8_t qos = 2; /* 0 1 or 2, see MQTT specification */
-           u8_t retain = 0;
-           err = mqtt_publish(mqtt_client, "test_topic", msgbuf, strlen(msgbuf), qos, retain, mqtt_pub_cb, nullptr);
+           err = mqtt_client.publish("test_topic", msgbuf, strlen(msgbuf));
            if(err != ERR_OK) {
              printf("Publish err: %d\n", err);
-             if(err==ERR_CONN) {
-                connected=false;
-             }
            }else{
               msgcount++;
            }
