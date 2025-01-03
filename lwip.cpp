@@ -6,7 +6,7 @@
 #include "lwip/dhcp.h"
 #include "lwip/timeouts.h"
 #include "lwip/apps/mqtt.h"
-//#include "lwip/apps/lwiperf.h"
+#include "lwip/apps/sntp.h"
 #include <cstring>
 #include <cstdio>
 #include <cstddef>
@@ -28,8 +28,7 @@ void link_callback(netif* netif){
    printf("Link status changed to %s\n.", netif->flags&NETIF_FLAG_LINK_UP ? "Up":"Down");
 }
 
-void tcp_accept_cb(void *arg, struct tcp_pcb *newpcb, err_t err){
-}
+
 
 int main(void)
 {
@@ -46,10 +45,11 @@ int main(void)
     enc28j60_netif netif(spidev,mac);
 
 
-    ip_addr_t gateway, mask, static_ip;
+    ip_addr_t gateway, mask, static_ip, ntp_serv;
     IP4_ADDR(&static_ip, 192, 168, 20, 211);
     IP4_ADDR(&mask, 255, 255, 255, 0);
     IP4_ADDR(&gateway, 192, 168, 20, 1);
+    IP4_ADDR(&ntp_serv, 192, 168, 20, 1);
 
     // IP4_ADDR_ANY if using DHCP client
     netif_set_addr(&netif,&static_ip,&mask,&gateway);
@@ -62,7 +62,9 @@ int main(void)
 
     dhcp_inform(&netif);
     //dhcp_start(&netif);
-
+    sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    sntp_setserver(0,&ntp_serv);
+    sntp_init();
     //MQTT
     mqtt_client mqtt_client{"pico-test","influx","influx"};
     ip_addr_t mqtt_server;
@@ -71,12 +73,6 @@ int main(void)
 
     err_t connect_err=mqtt_client.connect(mqtt_server,1883);
     printf("MQTT connect: %d\n",connect_err);
-
-    struct tcp_pcb * pcb=tcp_new();
-    tcp_bind(pcb,&static_ip,1234);
-    pcb=tcp_listen(pcb);
-
-    //lwiperf_start_tcp_server_default(iperf_result_cb,nullptr);
 
     char msgbuf[50];
     int msgcount=0;
@@ -89,7 +85,9 @@ int main(void)
         netif.poll();
 
         if(counter++>=10000 && mqtt_client.is_connected()){
-           snprintf(msgbuf,sizeof(msgbuf),"MQTT Test: %d",msgcount);
+           timeval tv;
+           gettimeofday(&tv,nullptr);
+           snprintf(msgbuf,sizeof(msgbuf),"MQTT Test: %d %lld",msgcount,tv.tv_sec);
            printf("%s\n",msgbuf);
            err_t err;
            err = mqtt_client.publish("test_topic", msgbuf, strlen(msgbuf));

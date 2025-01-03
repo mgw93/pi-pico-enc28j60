@@ -82,8 +82,10 @@
 #define PPP_DEBUG                   LWIP_DBG_OFF
 #define SLIP_DEBUG                  LWIP_DBG_OFF
 #define DHCP_DEBUG                  LWIP_DBG_OFF
+#define SNTP_DEBUG                  LWIP_DBG_OFF
 
-#define MEMP_NUM_SYS_TIMEOUT            (LWIP_NUM_SYS_TIMEOUT_INTERNAL+1) 
+#define MEMP_NUM_SYS_TIMEOUT            (LWIP_NUM_SYS_TIMEOUT_INTERNAL+8) 
 
+#define SNTP_SET_SYSTEM_TIME_US(sec,usec)       {struct timeval tv={sec,usec};settimeofday(&tv,NULL);}
 
 #endif /* __LWIPOPTS_H__ */
